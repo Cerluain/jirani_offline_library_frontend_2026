@@ -1,5 +1,9 @@
+import UploadVideo from "./Video"
+
+
 export default function UploadAndManagement(){
     return(<>
-        UploadAndManagement
+       <h1> UploadAndManagement</h1>
+       <UploadVideo />
     </>);
 }

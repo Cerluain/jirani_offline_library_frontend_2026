@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router'
+import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 
 import MainDashboard from './pages/MainDashboard'
@@ -7,7 +7,7 @@ import Login from './pages/Login'
 import AccountInfo from './pages/AccountInfo'
 import Signup from './pages/Signup'
 import UploadAndManagement from './pages/UploadAndManagement'
-
+import Video from "./pages/Video"
 
 function App() {
 
@@ -22,6 +22,7 @@ function App() {
           <Route path="/AccountInfo" element={<AccountInfo />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/uploadandmanagement" element={<UploadAndManagement />} />
+          <Route path="/video" element={<Video/>} />
       </Routes>
     </>
   )
