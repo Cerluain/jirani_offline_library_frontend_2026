@@ -1,8 +1,9 @@
 import { StrictMode } from 'react'
-import { BrowserRouter } from 'react-router'
+import { BrowserRouter } from 'react-router-dom'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 
+import './index.css'
 import './styles/jirani_style.scss'
 
 createRoot(document.getElementById('root')).render(

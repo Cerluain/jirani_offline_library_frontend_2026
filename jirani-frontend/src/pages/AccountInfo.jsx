@@ -1,49 +1,78 @@
-import PasswordResetButton from "../components/PasswordResetButton";
+import { useAuth } from '../hooks/useAuth'
+import { StudentLayout } from '../components/templates/StudentLayout'
+import { TeacherLayout } from '../components/templates/TeacherLayout'
 
+/**
+ * AccountInfo (Shared)
+ * User profile, password change, logout
+ */
 export default function AccountInfo() {
+  const { user, logout, role } = useAuth()
+  const Layout = role === 'teacher' ? TeacherLayout : StudentLayout
+
+  const handleLogout = () => {
+    logout()
+    window.location.href = '/auth/login'
+  }
+
   return (
-    <>
-      <div className="container mt-5">
-        <div className="p-5 mx-auto" style={{ maxWidth: "900px" }}>
-          <div className="row align-items-center justify-content-center gy-4">
-            {/* Left side: Account Info */}
-            <div className="col-lg-6 col-md-8 text-center text-md-start">
-              <h3 className="mb-4 text-primary fw-semibold">Account Info</h3>
+    <Layout>
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-900 mb-8">Account Settings</h1>
 
-              <div className="mb-3">
-                <strong>Account Type:</strong> <span>Student</span>
+        <div className="bg-white rounded-lg shadow p-8 space-y-6">
+          <section className="border-b pb-6">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Profile Information</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Full Name</label>
+                <input
+                  type="text"
+                  defaultValue={user?.fullName || user?.email || 'User'}
+                  disabled
+                  className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700"
+                />
               </div>
-
-              <div className="mb-3">
-                <strong>Username:</strong> <span>johndoe123</span>
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Email</label>
+                <input
+                  type="email"
+                  defaultValue={user?.email || ''}
+                  disabled
+                  className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700"
+                />
               </div>
-
-              <div className="mb-4">
-                <strong>High Contrast (Button):</strong> <span>Enabled</span>
-              </div>
-
-              {/* Password Reset Button */}
-              <PasswordResetButton
-                handleClick={() => alert("Reset password clicked!")}
-              />
-            </div>
-
-            {/* Right side: Profile Picture */}
-            <div className="col-lg-5 col-md-8 text-center">
-              <div
-                className="mx-auto border border-4 border-primary rounded-circle overflow-hidden shadow-lg d-flex align-items-center justify-content-center bg-light"
-                style={{ width: "200px", height: "200px" }}
-              >
-                <img
-                  src="https://img.freepik.com/free-photo/portrait-beautiful-purebred-pussycat-with-shorthair-orange-collar-neck-sitting-floor-reacting-camera-flash-scared-looking-light-indoor_8353-12551.jpg?semt=ais_hybrid&w=740&q=80"
-                  alt="Profile"
-                  className="img-fluid w-100 h-100 rounded-circle object-fit-cover"
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Role</label>
+                <input
+                  type="text"
+                  defaultValue={role?.toUpperCase() || 'USER'}
+                  disabled
+                  className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700"
                 />
               </div>
             </div>
-          </div>
+          </section>
+
+          <section className="border-b pb-6">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Security</h2>
+            <button className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+              Change Password
+            </button>
+            <p className="text-gray-600 text-sm mt-2">TODO: Implement password change form</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Sign Out</h2>
+            <button
+              onClick={handleLogout}
+              className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Logout
+            </button>
+          </section>
         </div>
       </div>
-    </>
-  );
+    </Layout>
+  )
 }

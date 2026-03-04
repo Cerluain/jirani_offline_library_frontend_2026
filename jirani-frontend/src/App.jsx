@@ -1,30 +1,115 @@
-import { Routes, Route } from 'react-router'
-import Header from './components/Header'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, AuthContext } from './context/AuthContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
 
-import MainDashboard from './pages/MainDashboard'
-import Analytics from './pages/Analytics'
-import Login from './pages/Login'
+// Pages - Auth
+import LoginPage from './pages/auth/LoginPage'
+import SignupPage from './pages/auth/SignupPage'
+
+// Pages - Student
+import LibraryHome from './pages/student/LibraryHome'
+import BookViewerPage from './pages/student/BookViewerPage'
+import VideoViewerPage from './pages/student/VideoViewerPage'
+
+// Pages - Teacher
+import TeacherDashboard from './pages/teacher/TeacherDashboard'
+import MediaManagement from './pages/teacher/MediaManagement'
+import UserManagement from './pages/teacher/UserManagement'
+
+// Shared
 import AccountInfo from './pages/AccountInfo'
-import Signup from './pages/Signup'
-import UploadAndManagement from './pages/UploadAndManagement'
 
+import './index.css'
+import './styles/jirani_style.scss'
+
+/**
+ * OFFLIB Frontend - Main Application Router
+ *
+ * Architecture:
+ * - AuthContext: Global state for user authentication and role
+ * - ProtectedRoute: Guard component for role-based access control
+ * - Separate route trees for /auth, /student, /teacher
+ *
+ * User Stories:
+ * 1. Unauthenticated → tries to access protected route → redirected to /auth/login
+ * 2. Student → tries to access /teacher/* → redirected to /student/library
+ * 3. Teacher → tries to access /student/* → redirected to /teacher/dashboard
+ *
+ * TODO - Planned Features:
+ * - P2/P3 pages: Onboarding, ItemDetailPage, SearchAndFilter, History, Analytics
+ * - ThemeContext for dark mode
+ * - useAuth, useFetchMedia custom hooks
+ * - API integrations: authApi, mediaApi
+ */
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* === PUBLIC / AUTH ROUTES === */}
+      <Route path="/" element={<Navigate to="/auth/login" replace />} />
+      <Route path="/auth/login" element={<LoginPage />} />
+      <Route path="/auth/signup" element={<SignupPage />} />
+
+      {/* === STUDENT ROUTES === */}
+      <Route
+        path="/student/library"
+        element={<ProtectedRoute component={LibraryHome} requiredRole="student" />}
+      />
+      <Route
+        path="/student/book/:bookId"
+        element={<ProtectedRoute component={BookViewerPage} requiredRole="student" />}
+      />
+      <Route
+        path="/student/video"
+        element={<ProtectedRoute component={VideoViewerPage} requiredRole="student" />}
+      />
+
+      {/* === TEACHER ROUTES === */}
+      <Route
+        path="/teacher/dashboard"
+        element={<ProtectedRoute component={TeacherDashboard} requiredRole="teacher" />}
+      />
+      <Route
+        path="/teacher/media-management"
+        element={<ProtectedRoute component={MediaManagement} requiredRole="teacher" />}
+      />
+      <Route
+        path="/teacher/user-management"
+        element={<ProtectedRoute component={UserManagement} requiredRole="teacher" />}
+      />
+
+      {/* === SHARED ROUTES === */}
+      <Route
+        path="/account"
+        element={<ProtectedRoute component={AccountInfo} />}
+      />
+
+      {/* Catch-all: redirect unknown routes to login */}
+      <Route path="*" element={<Navigate to="/auth/login" replace />} />
+    </Routes>
+  )
+}
 
 function App() {
+  // Restore auth from localStorage on app load (optional)
+  useEffect(() => {
+    const stored = localStorage.getItem('auth')
+    if (stored) {
+      try {
+        // Restore auth state if present
+        // This is handled by AuthContext, but you can add extra logic here
+      } catch (e) {
+        console.error('Failed to restore auth state:', e)
+      }
+    }
+  }, [])
 
   return (
-    <>
-      <Header />
-      <Routes>
-          <Route path="/" element={<MainDashboard />} />
-          <Route path="/maindashboard" element={<MainDashboard />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/AccountInfo" element={<AccountInfo />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/uploadandmanagement" element={<UploadAndManagement />} />
-      </Routes>
-    </>
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   )
 }
 
 export default App
+
