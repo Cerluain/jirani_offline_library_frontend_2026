@@ -2,6 +2,14 @@ import { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 
+
+
+
+// READ: Currently only these pages are being used, as I'm writing this they're legacy
+// Our first goal is to mark these as duplicate pages, and develop the new pages using these as a possible template. Few at a time!
+// When we complete one, we test it and then add it to the *main* branch
+// Suggested order is: Auth pages, then Layout components such as header/sidebar/nav, teacher pages, student pages, additional pages.
+
 import MainDashboard from './pages/MainDashboard'
 import Analytics from './pages/Analytics'
 import Login from './pages/Login'
