@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* hello * /
+
 /* Legacy custom styles - can be migrated to Tailwind */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
