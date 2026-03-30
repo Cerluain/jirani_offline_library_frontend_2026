@@ -16,4 +16,3 @@ git checkout legacy
 ## Running the frontend on development:
 npm run dev
 
-hello
