@@ -9,6 +9,8 @@ import AccountInfo from './pages/AccountInfo'
 import Signup from './pages/Signup'
 import UploadAndManagement from './pages/UploadAndManagement'
 import Video from "./pages/Video"
+import Library from './pages/Library'  
+import ReadBook from './pages/ReadBook'
 
 function App() {
   // Restore auth from localStorage on app load (optional)
@@ -26,14 +28,14 @@ function App() {
 
   return (
     <>
-      <Header />
       <Routes>
-          <Route path="/" element={<MainDashboard />} />
+          <Route path="/" element={<Library />} />
           <Route path="/maindashboard" element={<MainDashboard />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/login" element={<Login />} />
           <Route path="/AccountInfo" element={<AccountInfo />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/read/:uid" element={<ReadBook />} />
           <Route path="/uploadandmanagement" element={<UploadAndManagement />} />
           <Route path="/video" element={<Video/>} />
       </Routes>
