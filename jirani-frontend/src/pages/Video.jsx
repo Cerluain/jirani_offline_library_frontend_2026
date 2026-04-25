@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Trash2, Loader2, UploadCloud, Film } from "lucide-react";
+import { Trash2, Loader2, UploadCloud, Film, Pencil, Check, X } from "lucide-react";
 
 const UploadVideo = () => {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [alert, setAlert] = useState({ msg: "", type: "" });
   const [loading, setLoading] = useState(false);
   const [videos, setVideos] = useState([]);
   const [deletingId, setDeletingId] = useState(null);
+
+  // Inline edit state
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const getVideos = async () => {
     const res = await fetch("http://localhost:8000/videos");
@@ -17,22 +20,39 @@ const UploadVideo = () => {
 
   useEffect(() => { getVideos(); }, []);
 
+  const handleFileSelect = (e) => {
+    setFiles(Array.from(e.target.files));
+    e.target.value = "";
+  };
+
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const upload = async () => {
-    if (!title.trim()) { setAlert({ msg: "// title is required", type: "error" }); return; }
-    if (!file)         { setAlert({ msg: "// no file selected",  type: "error" }); return; }
+    if (files.length === 0) {
+      setAlert({ msg: "// no file selected", type: "error" });
+      return;
+    }
 
     setLoading(true);
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("description", description);
-    formData.append("file", file);
-
     try {
-      const res = await fetch("http://localhost:8000/videos/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error();
-      setAlert({ msg: "// upload successful", type: "success" });
+      if (files.length === 1) {
+        const formData = new FormData();
+        formData.append("file", files[0]);
+        formData.append("title", files[0].name.replace(/\.[^/.]+$/, ""));
+        const res = await fetch("http://localhost:8000/videos/upload", { method: "POST", body: formData });
+        if (!res.ok) throw new Error();
+      } else {
+        const formData = new FormData();
+        files.forEach(f => formData.append("files", f));
+        const res = await fetch("http://localhost:8000/videos/upload_multiple", { method: "POST", body: formData });
+        if (!res.ok) throw new Error();
+      }
+
+      setAlert({ msg: `// ${files.length} video${files.length !== 1 ? "s" : ""} uploaded`, type: "success" });
       getVideos();
-      setTitle(""); setDescription(""); setFile(null);
+      setFiles([]);
     } catch {
       setAlert({ msg: "// upload failed — try again", type: "error" });
     } finally {
@@ -45,11 +65,38 @@ const UploadVideo = () => {
     try {
       const res = await fetch(`http://localhost:8000/videos/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
-      setVideos((prev) => prev.filter((v) => v.id !== id));
+      setVideos(prev => prev.filter((v) => v.id !== id));
     } catch {
       setAlert({ msg: "// delete failed", type: "error" });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const startEditing = (video) => {
+    setEditingId(video.id);
+    setEditTitle(video.title);
+    setEditDescription(video.description || "");
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditDescription("");
+  };
+
+  const saveEdit = async (id) => {
+    try {
+      const params = new URLSearchParams();
+      if (editTitle.trim()) params.append("title", editTitle.trim());
+      params.append("description", editDescription);
+      const res = await fetch(`http://localhost:8000/videos/${id}?${params}`, { method: "PATCH" });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setVideos(prev => prev.map(v => v.id === id ? updated : v));
+      cancelEditing();
+    } catch {
+      setAlert({ msg: "// update failed", type: "error" });
     }
   };
 
@@ -58,58 +105,51 @@ const UploadVideo = () => {
       {/* Upload Card */}
       <div className="relative bg-[#111111] border border-[#2a2a2a] border-t-2 border-t-[#C9A84C] rounded p-8 mb-12">
         <span className="absolute -top-2.5 left-6 bg-[#111111] px-2 font-mono text-[0.6rem] tracking-widest text-[#C9A84C] uppercase">
-          New Upload
+          Upload
         </span>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="font-mono text-[0.62rem] tracking-widest text-[#7a7265] uppercase">Title</label>
-            <input
-              type="text"
-              placeholder="Enter video title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="bg-[#0A0A0A] border border-[#2a2a2a] rounded-sm px-3 py-2.5 text-[#F0EAD6] text-sm placeholder-[#4a4540] outline-none focus:border-[#7a5e20] transition-colors"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="font-mono text-[0.62rem] tracking-widest text-[#7a7265] uppercase">Description</label>
-            <input
-              type="text"
-              placeholder="Optional..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="bg-[#0A0A0A] border border-[#2a2a2a] rounded-sm px-3 py-2.5 text-[#F0EAD6] text-sm placeholder-[#4a4540] outline-none focus:border-[#7a5e20] transition-colors"
-            />
-          </div>
-
-          <div className="col-span-2 flex flex-col gap-1.5">
-            <label className="font-mono text-[0.62rem] tracking-widest text-[#7a7265] uppercase">Video File</label>
-            <div className="relative bg-[#0A0A0A] border border-dashed border-[#2a2a2a] rounded-sm p-7 text-center cursor-pointer hover:border-[#7a5e20] hover:bg-[#0e0e0e] transition-colors">
-              <input
-                type="file"
-                accept="video/*"
-                onChange={(e) => setFile(e.target.files[0])}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              />
-              <Film className="mx-auto mb-2 text-[#4a4540]" size={24} />
-              {file
-                ? <p className="font-mono text-xs text-[#E2C97E]">⬡ {file.name}</p>
-                : <p className="text-sm text-[#7a7265] font-light">Click or drag a video file here</p>
-              }
-            </div>
-          </div>
+        {/* File picker dropzone */}
+        <div className="relative bg-[#0A0A0A] border border-dashed border-[#2a2a2a] rounded-sm p-8 text-center cursor-pointer hover:border-[#7a5e20] hover:bg-[#0e0e0e] transition-colors mb-4">
+          <input
+            type="file"
+            accept="video/*"
+            multiple
+            onChange={handleFileSelect}
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+          />
+          <Film className="mx-auto mb-2 text-[#4a4540]" size={24} />
+          {files.length > 0
+            ? <p className="font-mono text-xs text-[#E2C97E]">⬡ {files.length} file{files.length !== 1 ? "s" : ""} selected — click to change</p>
+            : <p className="text-sm text-[#7a7265] font-light">Click or drag — select one or more videos</p>
+          }
         </div>
+
+        {/* Selected file list */}
+        {files.length > 0 && (
+          <div className="mb-4 border border-[#2a2a2a] rounded-sm overflow-hidden">
+            {files.map((f, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-2.5 border-b border-[#2a2a2a] last:border-b-0 bg-[#0d0d0d]">
+                <Film size={12} className="text-[#4a4540] flex-shrink-0" />
+                <span className="font-mono text-xs text-[#F0EAD6] truncate flex-1">{f.name}</span>
+                <span className="font-mono text-[0.6rem] text-[#4a4540] flex-shrink-0">
+                  {(f.size / (1024 * 1024)).toFixed(1)} MB
+                </span>
+                <button onClick={() => removeFile(i)} className="text-[#4a4540] hover:text-[#e07070] transition-colors flex-shrink-0">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <button
           onClick={upload}
-          disabled={loading}
-          className="mt-2 w-full py-3 bg-[#C9A84C] text-[#0A0A0A] font-mono font-medium text-xs tracking-widest uppercase rounded-sm hover:bg-[#E2C97E] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          disabled={loading || files.length === 0}
+          className="w-full py-3 bg-[#C9A84C] text-[#0A0A0A] font-mono font-medium text-xs tracking-widest uppercase rounded-sm hover:bg-[#E2C97E] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
         >
           {loading
             ? <><Loader2 size={14} className="animate-spin" /> Uploading...</>
-            : <><UploadCloud size={14} /> Upload Video</>
+            : <><UploadCloud size={14} /> Upload {files.length > 0 ? `(${files.length})` : ""}</>
           }
         </button>
 
@@ -149,20 +189,67 @@ const UploadVideo = () => {
               <video controls preload="metadata" className="w-full block bg-black max-h-44 object-cover">
                 <source src={`http://localhost:8000/videos/stream/${video.id}`} type="video/mp4" />
               </video>
-              <div className="px-3 py-2.5 flex items-center justify-between gap-2 border-t border-[#2a2a2a]">
-                <span className="text-sm font-medium text-[#F0EAD6] truncate">{video.title}</span>
-                <button
-                  title="Delete"
-                  disabled={deletingId === video.id}
-                  onClick={() => deleteVideo(video.id)}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center border border-[#2a2a2a] rounded-sm text-[#4a4540] hover:bg-[#2a1210] hover:border-[#c0392b] hover:text-[#e07070] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  {deletingId === video.id
-                    ? <Loader2 size={13} className="animate-spin text-[#e07070]" />
-                    : <Trash2 size={13} />
-                  }
-                </button>
-              </div>
+
+              {editingId === video.id ? (
+                <div className="px-3 py-3 border-t border-[#2a2a2a]">
+                  <input
+                    autoFocus
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Title..."
+                    className="w-full bg-[#0A0A0A] border border-[#7a5e20] rounded-sm px-2 py-1.5 text-[#F0EAD6] text-sm outline-none mb-1.5"
+                  />
+                  <input
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Description (optional)..."
+                    className="w-full bg-[#0A0A0A] border border-[#2a2a2a] rounded-sm px-2 py-1.5 text-[#7a7265] text-xs outline-none focus:border-[#7a5e20] transition-colors mb-2"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => saveEdit(video.id)}
+                      className="flex-1 py-1.5 bg-[#C9A84C] text-[#0A0A0A] font-mono text-[0.6rem] tracking-widest uppercase rounded-sm hover:bg-[#E2C97E] transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Check size={10} /> Save
+                    </button>
+                    <button
+                      onClick={cancelEditing}
+                      className="flex-1 py-1.5 border border-[#2a2a2a] text-[#7a7265] font-mono text-[0.6rem] tracking-widest uppercase rounded-sm hover:border-[#4a4540] transition-colors flex items-center justify-center gap-1"
+                    >
+                      <X size={10} /> Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-3 py-2.5 flex items-center justify-between gap-2 border-t border-[#2a2a2a]">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-medium text-[#F0EAD6] truncate">{video.title}</span>
+                    {video.description && (
+                      <span className="text-xs text-[#7a7265] truncate">{video.description}</span>
+                    )}
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button
+                      title="Edit"
+                      onClick={() => startEditing(video)}
+                      className="w-8 h-8 flex items-center justify-center border border-[#2a2a2a] rounded-sm text-[#4a4540] hover:bg-[#1a1a0a] hover:border-[#7a5e20] hover:text-[#C9A84C] transition-colors"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      title="Delete"
+                      disabled={deletingId === video.id}
+                      onClick={() => deleteVideo(video.id)}
+                      className="w-8 h-8 flex items-center justify-center border border-[#2a2a2a] rounded-sm text-[#4a4540] hover:bg-[#2a1210] hover:border-[#c0392b] hover:text-[#e07070] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {deletingId === video.id
+                        ? <Loader2 size={13} className="animate-spin text-[#e07070]" />
+                        : <Trash2 size={13} />
+                      }
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
