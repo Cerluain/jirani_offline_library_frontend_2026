@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   BookOpen, Film, Upload, X, Trash2, Loader2,
-  Pencil, Check, Search, Plus, Eye, Tag, Filter
+  Pencil, Check, Search, Plus, Eye, Tag, Filter, Music, LogOut
 } from "lucide-react";
 
 const BOOKS_API = "http://localhost:8000/books";
 const VIDEOS_API = "http://localhost:8000/videos";
+const AUDIO_API = "http://localhost:8000/audio";
 const TAGS_API = "http://localhost:8000/tags";
 const PUBLISHERS_API = "http://localhost:8000/publishers";
 
@@ -20,6 +22,7 @@ const UploadModal = ({ onClose, onSuccess, type }) => {
 
   const handleFileSelect = (e) => { setFiles(Array.from(e.target.files)); e.target.value = ""; };
   const removeFile = (i) => setFiles(prev => prev.filter((_, idx) => idx !== i));
+  const acceptType = tab === "book" ? ".pdf,.epub" : tab === "audio" ? ".mp3,.wav,.ogg,.m4a,.aac,.flac" : "video/*";
 
   const upload = async () => {
     if (files.length === 0) { setError("No files selected."); return; }
@@ -31,11 +34,19 @@ const UploadModal = ({ onClose, onSuccess, type }) => {
           formData.append("file", file);
           if (tags.trim()) formData.append("tags", tags.trim());
           const res = await fetch(`${BOOKS_API}/upload`, { method: "POST", body: formData });
-          if (!res.ok) {
-            const data = await res.json().catch(() => null);
-            const msg = data?.detail ?? `HTTP ${res.status}`;
-            throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
-          }
+          if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.detail ?? `HTTP ${res.status}`); }
+        }
+      } else if (tab === "audio") {
+        if (files.length === 1) {
+          const formData = new FormData();
+          formData.append("file", files[0]);
+          const res = await fetch(`${AUDIO_API}/upload`, { method: "POST", body: formData });
+          if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.detail ?? `HTTP ${res.status}`); }
+        } else {
+          const formData = new FormData();
+          files.forEach(f => formData.append("files", f));
+          const res = await fetch(`${AUDIO_API}/upload_multiple`, { method: "POST", body: formData });
+          if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.detail ?? `HTTP ${res.status}`); }
         }
       } else {
         if (files.length === 1) {
@@ -57,30 +68,32 @@ const UploadModal = ({ onClose, onSuccess, type }) => {
     } finally { setLoading(false); }
   };
 
+  const TabIcon = tab === "book" ? BookOpen : tab === "audio" ? Music : Film;
+  const tabLabel = tab === "book" ? "Add Book" : tab === "audio" ? "Add Audio" : "Add Video";
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(28,26,23,0.4)", backdropFilter: "blur(6px)" }}>
       <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 440, margin: "0 16px", boxShadow: "0 32px 80px rgba(28,26,23,0.18)", overflow: "hidden" }}>
         <div style={{ padding: "22px 24px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 19, fontWeight: 600, color: "#1C1A17" }}>
-            {tab === "book" ? "Add Book" : "Add Video"}
-          </span>
+          <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 19, fontWeight: 600, color: "#1C1A17" }}>{tabLabel}</span>
           <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E8E4DE", background: "#F7F5F2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#6B6560" }}>
             <X size={15} />
           </button>
         </div>
-
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ position: "relative", background: "#FAFAF9", border: "2px dashed #D4CFC8", borderRadius: 14, padding: "28px 20px", textAlign: "center", cursor: "pointer" }}>
-            <input type="file" accept={tab === "book" ? ".pdf,.epub" : "video/*"} multiple onChange={handleFileSelect}
+            <input type="file" accept={acceptType} multiple onChange={handleFileSelect}
               style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "#F5EDD8", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
-              {tab === "book" ? <BookOpen size={18} color="#B8922A" /> : <Film size={18} color="#B8922A" />}
+              <TabIcon size={18} color="#B8922A" />
             </div>
             {files.length > 0
               ? <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#B8922A", fontWeight: 500, margin: 0 }}>{files.length} file{files.length !== 1 ? "s" : ""} selected</p>
               : <>
                   <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#1C1A17", fontWeight: 500, margin: "0 0 3px" }}>Click to browse</p>
-                  <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, color: "#A09890", margin: 0 }}>{tab === "book" ? "PDF or EPUB" : "Video files"}</p>
+                  <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, color: "#A09890", margin: 0 }}>
+                    {tab === "book" ? "PDF or EPUB" : tab === "audio" ? "MP3, WAV, OGG, M4A, AAC, FLAC" : "Video files"}
+                  </p>
                 </>
             }
           </div>
@@ -106,9 +119,7 @@ const UploadModal = ({ onClose, onSuccess, type }) => {
           )}
 
           {error && (
-            <div style={{ padding: "10px 14px", background: "#FEF2F0", border: "1px solid #FADADD", borderRadius: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#D94F3D" }}>
-              {error}
-            </div>
+            <div style={{ padding: "10px 14px", background: "#FEF2F0", border: "1px solid #FADADD", borderRadius: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#D94F3D" }}>{error}</div>
           )}
 
           <button onClick={upload} disabled={loading || files.length === 0}
@@ -137,13 +148,9 @@ const BookEditModal = ({ book, publishers, onClose, onUpdate }) => {
       formData.append("tags", tags.trim());
       if (publisherId) formData.append("publisher_id", publisherId);
       const res = await fetch(`${BOOKS_API}/${book.uid}`, { method: "PUT", body: formData });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.detail ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) { const data = await res.json().catch(() => null); throw new Error(data?.detail ?? `HTTP ${res.status}`); }
       const updated = await res.json();
-      onUpdate(updated);
-      onClose();
+      onUpdate(updated); onClose();
     } catch (e) {
       setError(e.message || "Failed to save.");
     } finally { setSaving(false); }
@@ -158,20 +165,17 @@ const BookEditModal = ({ book, publishers, onClose, onUpdate }) => {
             <X size={15} />
           </button>
         </div>
-
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, color: "#6B6560", display: "block", marginBottom: 6 }}>Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Book title..."
               style={{ width: "100%", padding: "10px 14px", border: "1px solid #E8E4DE", borderRadius: 10, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#1C1A17", outline: "none", boxSizing: "border-box" }} />
           </div>
-
           <div>
             <label style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, color: "#6B6560", display: "block", marginBottom: 6 }}>Tags (comma separated)</label>
             <input value={tags} onChange={e => setTags(e.target.value)} placeholder="history, science, fiction..."
               style={{ width: "100%", padding: "10px 14px", border: "1px solid #E8E4DE", borderRadius: 10, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#1C1A17", outline: "none", boxSizing: "border-box" }} />
           </div>
-
           <div>
             <label style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, color: "#6B6560", display: "block", marginBottom: 6 }}>Publisher</label>
             <select value={publisherId} onChange={e => setPublisherId(e.target.value)}
@@ -180,13 +184,7 @@ const BookEditModal = ({ book, publishers, onClose, onUpdate }) => {
               {publishers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
-
-          {error && (
-            <div style={{ padding: "10px 14px", background: "#FEF2F0", border: "1px solid #FADADD", borderRadius: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#D94F3D" }}>
-              {error}
-            </div>
-          )}
-
+          {error && <div style={{ padding: "10px 14px", background: "#FEF2F0", border: "1px solid #FADADD", borderRadius: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#D94F3D" }}>{error}</div>}
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={save} disabled={saving}
               style={{ flex: 1, padding: "12px 0", background: saving ? "#E8E4DE" : "#B8922A", color: saving ? "#A09890" : "#fff", border: "none", borderRadius: 10, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -204,7 +202,7 @@ const BookEditModal = ({ book, publishers, onClose, onUpdate }) => {
 };
 
 // ── BOOK CARD ─────────────────────────────────────────────────────────────────
-const BookCard = ({ book, onDelete, onEdit }) => {
+const BookCard = ({ book, onDelete, onEdit, isAdmin }) => {
   const [deleting, setDeleting] = useState(false);
   const [hovered, setHovered] = useState(false);
   const navigate = useNavigate();
@@ -235,19 +233,24 @@ const BookCard = ({ book, onDelete, onEdit }) => {
             {book.extension}
           </span>
         </div>
+        {/* Hover overlay — read always visible, edit/delete only for admin */}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(28,26,23,0.65) 0%, transparent 55%)", opacity: hovered ? 1 : 0, transition: "opacity 0.2s ease", display: "flex", alignItems: "flex-end", padding: 10, gap: 6, justifyContent: "flex-end" }}>
           <button onClick={(e) => { e.stopPropagation(); navigate(`/read/${book.uid}`); }}
             style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.95)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#B8922A" }}>
             <Eye size={14} />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); onEdit(book); }}
-            style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.95)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6560" }}>
-            <Pencil size={14} />
-          </button>
-          <button onClick={handleDelete} disabled={deleting}
-            style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.95)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#D94F3D", opacity: deleting ? 0.4 : 1 }}>
-            {deleting ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />}
-          </button>
+          {isAdmin && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); onEdit(book); }}
+                style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.95)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6560" }}>
+                <Pencil size={14} />
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.95)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#D94F3D", opacity: deleting ? 0.4 : 1 }}>
+                {deleting ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />}
+              </button>
+            </>
+          )}
         </div>
       </div>
       <div style={{ padding: "12px 13px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -270,7 +273,7 @@ const BookCard = ({ book, onDelete, onEdit }) => {
 };
 
 // ── VIDEO CARD ────────────────────────────────────────────────────────────────
-const VideoCard = ({ video, onDelete, onUpdate }) => {
+const VideoCard = ({ video, onDelete, onUpdate, isAdmin }) => {
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(video.title);
@@ -316,14 +319,98 @@ const VideoCard = ({ video, onDelete, onUpdate }) => {
             <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#1C1A17", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{video.title}</p>
             {video.description && <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "#A09890", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: "2px 0 0" }}>{video.description}</p>}
           </div>
-          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-            <button onClick={() => setEditing(true)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E8E4DE", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6560" }}>
-              <Pencil size={12} />
+          {isAdmin && (
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <button onClick={() => setEditing(true)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E8E4DE", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6560" }}>
+                <Pencil size={12} />
+              </button>
+              <button onClick={handleDelete} disabled={deleting} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #FADADD", background: "#FEF2F0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#D94F3D", opacity: deleting ? 0.4 : 1 }}>
+                {deleting ? <Loader2 size={12} className="spin" /> : <Trash2 size={12} />}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── AUDIO CARD ────────────────────────────────────────────────────────────────
+const AudioCard = ({ audio, onDelete, onUpdate, isAdmin, onPlay, currentlyPlaying }) => {
+  const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(audio.title);
+  const [editDesc, setEditDesc] = useState(audio.description || "");
+  const audioRef = React.useRef(null);
+
+  // Auto-stop when another track starts playing
+  useEffect(() => {
+    if (currentlyPlaying !== audio.id && audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, [currentlyPlaying, audio.id]);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try { await fetch(`${AUDIO_API}/${audio.id}`, { method: "DELETE" }); onDelete(audio.id); }
+    finally { setDeleting(false); }
+  };
+
+  const saveEdit = async () => {
+    const params = new URLSearchParams();
+    if (editTitle.trim()) params.append("title", editTitle.trim());
+    params.append("description", editDesc);
+    const res = await fetch(`${AUDIO_API}/${audio.id}?${params}`, { method: "PATCH" });
+    if (res.ok) { const updated = await res.json(); onUpdate(updated); setEditing(false); }
+  };
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", border: "1px solid #E8E4DE", boxShadow: "0 1px 4px rgba(28,26,23,0.05)" }}>
+      <div style={{ background: "linear-gradient(135deg, #F5EDD8 0%, #EDE0C4 100%)", padding: "20px 16px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 48, height: 48, borderRadius: 14, background: "#B8922A", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(184,146,42,0.3)" }}>
+          <Music size={22} color="#fff" />
+        </div>
+        <audio
+          ref={audioRef}
+          controls
+          onPlay={() => onPlay(audio.id)}
+          style={{ width: "100%", height: 36 }}
+        >
+          <source src={`${AUDIO_API}/stream/${audio.id}`} />
+        </audio>
+      </div>
+
+      {editing ? (
+        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8, borderTop: "1px solid #E8E4DE" }}>
+          <input autoFocus value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Title..."
+            style={{ padding: "9px 12px", border: "1.5px solid #B8922A", borderRadius: 9, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#1C1A17", outline: "none" }} />
+          <input value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder="Description (optional)..."
+            style={{ padding: "9px 12px", border: "1px solid #E8E4DE", borderRadius: 9, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, color: "#6B6560", outline: "none" }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={saveEdit} style={{ flex: 1, padding: "9px 0", background: "#B8922A", color: "#fff", border: "none", borderRadius: 9, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <Check size={12} /> Save
             </button>
-            <button onClick={handleDelete} disabled={deleting} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #FADADD", background: "#FEF2F0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#D94F3D", opacity: deleting ? 0.4 : 1 }}>
-              {deleting ? <Loader2 size={12} className="spin" /> : <Trash2 size={12} />}
+            <button onClick={() => setEditing(false)} style={{ flex: 1, padding: "9px 0", background: "#F7F5F2", color: "#6B6560", border: "1px solid #E8E4DE", borderRadius: 9, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <X size={12} /> Cancel
             </button>
           </div>
+        </div>
+      ) : (
+        <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, borderTop: "1px solid #E8E4DE" }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#1C1A17", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{audio.title}</p>
+            {audio.description && <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "#A09890", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: "2px 0 0" }}>{audio.description}</p>}
+          </div>
+          {isAdmin && (
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <button onClick={() => setEditing(true)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E8E4DE", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6560" }}>
+                <Pencil size={12} />
+              </button>
+              <button onClick={handleDelete} disabled={deleting} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #FADADD", background: "#FEF2F0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#D94F3D", opacity: deleting ? 0.4 : 1 }}>
+                {deleting ? <Loader2 size={12} className="spin" /> : <Trash2 size={12} />}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -331,26 +418,37 @@ const VideoCard = ({ video, onDelete, onUpdate }) => {
 };
 
 // ── EMPTY STATE ───────────────────────────────────────────────────────────────
-const EmptyState = ({ tab, onUpload }) => (
-  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16, textAlign: "center" }}>
-    <div style={{ width: 68, height: 68, borderRadius: 20, background: "#F5EDD8", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {tab === "books" ? <BookOpen size={28} color="#B8922A" /> : <Film size={28} color="#B8922A" />}
+const EmptyState = ({ tab, onUpload, isAdmin }) => {
+  const Icon = tab === "books" ? BookOpen : tab === "audio" ? Music : Film;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16, textAlign: "center" }}>
+      <div style={{ width: 68, height: 68, borderRadius: 20, background: "#F5EDD8", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Icon size={28} color="#B8922A" />
+      </div>
+      <div>
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 600, color: "#1C1A17", margin: "0 0 6px" }}>No {tab} yet</p>
+        <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#A09890", margin: 0 }}>
+          {isAdmin ? `Upload some ${tab} to get started` : "Nothing here yet — check back later"}
+        </p>
+      </div>
+      {isAdmin && (
+        <button onClick={onUpload} style={{ padding: "11px 22px", background: "#B8922A", color: "#fff", border: "none", borderRadius: 10, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+          <Plus size={14} /> Add {tab}
+        </button>
+      )}
     </div>
-    <div>
-      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 600, color: "#1C1A17", margin: "0 0 6px" }}>No {tab} yet</p>
-      <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#A09890", margin: 0 }}>Upload some {tab} to get started</p>
-    </div>
-    <button onClick={onUpload} style={{ padding: "11px 22px", background: "#B8922A", color: "#fff", border: "none", borderRadius: 10, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-      <Plus size={14} /> Add {tab === "books" ? "Books" : "Videos"}
-    </button>
-  </div>
-);
+  );
+};
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 const Library = () => {
+  const { isAdmin, isGuest, logout, auth } = useAuth();
+  const navigate = useNavigate();
+
   const [activeTab, setActiveTab] = useState("books");
   const [books, setBooks] = useState([]);
   const [videos, setVideos] = useState([]);
+  const [audioTracks, setAudioTracks] = useState([]);
   const [allTags, setAllTags] = useState([]);
   const [publishers, setPublishers] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
@@ -358,6 +456,7 @@ const Library = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentlyPlayingAudio, setCurrentlyPlayingAudio] = useState(null);
 
   const fetchBooks = async () => {
     try {
@@ -373,6 +472,10 @@ const Library = () => {
     try { const res = await fetch(`${VIDEOS_API}/`); if (res.ok) setVideos(await res.json()); } catch {}
   };
 
+  const fetchAudio = async () => {
+    try { const res = await fetch(`${AUDIO_API}/`); if (res.ok) setAudioTracks(await res.json()); } catch {}
+  };
+
   const fetchTags = async () => {
     try { const res = await fetch(TAGS_API); if (res.ok) setAllTags(await res.json()); } catch {}
   };
@@ -382,24 +485,24 @@ const Library = () => {
   };
 
   useEffect(() => {
-    Promise.all([fetchBooks(), fetchVideos(), fetchTags(), fetchPublishers()]).finally(() => setLoading(false));
+    Promise.all([fetchBooks(), fetchVideos(), fetchAudio(), fetchTags(), fetchPublishers()]).finally(() => setLoading(false));
   }, []);
 
-  // Re-fetch books when tag filter or search changes
-  useEffect(() => {
-    if (!loading) fetchBooks();
-  }, [selectedTags, search]);
+  useEffect(() => { if (!loading) fetchBooks(); }, [selectedTags, search]);
 
   const toggleTag = (tagName) => {
-    setSelectedTags(prev =>
-      prev.includes(tagName) ? prev.filter(t => t !== tagName) : [...prev, tagName]
-    );
+    setSelectedTags(prev => prev.includes(tagName) ? prev.filter(t => t !== tagName) : [...prev, tagName]);
   };
 
+  const handleLogout = () => { logout(); navigate("/"); };
+
   const filteredVideos = videos.filter(v => v.title.toLowerCase().includes(search.toLowerCase()));
+  const filteredAudio = audioTracks.filter(a => a.title.toLowerCase().includes(search.toLowerCase()));
+  const uploadType = activeTab === "books" ? "book" : activeTab === "audio" ? "audio" : "video";
 
   const tabs = [
     { id: "books", label: "Books", icon: BookOpen, count: books.length },
+    { id: "audio", label: "Audio", icon: Music, count: audioTracks.length },
     { id: "videos", label: "Videos", icon: Film, count: videos.length },
   ];
 
@@ -426,7 +529,7 @@ const Library = () => {
           ))}
         </nav>
 
-        {/* Tag filter — only show on books tab */}
+        {/* Tag filter — books only */}
         {activeTab === "books" && allTags.length > 0 && (
           <div style={{ padding: "0 10px 12px", flex: 1, overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 4px 8px", marginBottom: 4 }}>
@@ -450,16 +553,37 @@ const Library = () => {
             )}
           </div>
         )}
+
+        {/* Bottom — user info + logout */}
+        <div style={{ marginTop: "auto", padding: "12px 10px", borderTop: "1px solid #E8E4DE" }}>
+          <div style={{ padding: "8px 12px", borderRadius: 10, background: "#FAFAF9", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, fontWeight: 500, color: "#1C1A17", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {isAdmin ? auth?.username : "Student"}
+              </p>
+              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#A09890", margin: 0, textTransform: "uppercase" }}>
+                {isAdmin ? "Admin" : "Guest"}
+              </p>
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Sign out"
+              style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E8E4DE", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#A09890", flexShrink: 0 }}
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* ── MAIN ── */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: "#FAFAF9" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 28px", background: "#fff", borderBottom: "1px solid #E8E4DE" }}>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 600, color: "#1C1A17", margin: 0, letterSpacing: "-0.01em" }}>
-            {activeTab === "books" ? "Books" : "Videos"}
+            {activeTab === "books" ? "Books" : activeTab === "audio" ? "Audio" : "Videos"}
           </h2>
           <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#F5EDD8", color: "#B8922A" }}>
-            {activeTab === "books" ? books.length : filteredVideos.length}
+            {activeTab === "books" ? books.length : activeTab === "audio" ? filteredAudio.length : filteredVideos.length}
           </span>
 
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
@@ -468,13 +592,16 @@ const Library = () => {
               <input type="text" placeholder={`Search ${activeTab}...`} value={search} onChange={e => setSearch(e.target.value)}
                 style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#1C1A17", width: "100%" }} />
             </div>
-            <button onClick={() => setShowUpload(true)}
-              onMouseEnter={e => e.currentTarget.style.background = "#F5EDD8"}
-              onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", background: "#fff", border: "1.5px solid #B8922A", borderRadius: 10, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#B8922A", cursor: "pointer", transition: "background 0.15s", whiteSpace: "nowrap" }}>
-              <Upload size={13} />
-              Upload {activeTab === "books" ? "Book" : "Video"}
-            </button>
+            {/* Upload button — admin only */}
+            {isAdmin && (
+              <button onClick={() => setShowUpload(true)}
+                onMouseEnter={e => e.currentTarget.style.background = "#F5EDD8"}
+                onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", background: "#fff", border: "1.5px solid #B8922A", borderRadius: 10, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#B8922A", cursor: "pointer", transition: "background 0.15s", whiteSpace: "nowrap" }}>
+                <Upload size={13} />
+                Upload {activeTab === "books" ? "Book" : activeTab === "audio" ? "Audio" : "Video"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -485,21 +612,32 @@ const Library = () => {
             </div>
           ) : activeTab === "books" ? (
             books.length === 0
-              ? <EmptyState tab="books" onUpload={() => setShowUpload(true)} />
+              ? <EmptyState tab="books" onUpload={() => setShowUpload(true)} isAdmin={isAdmin} />
               : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 16 }}>
                   {books.map(book => (
-                    <BookCard key={book.uid} book={book}
+                    <BookCard key={book.uid} book={book} isAdmin={isAdmin}
                       onDelete={uid => setBooks(prev => prev.filter(b => b.uid !== uid))}
-                      onEdit={setEditingBook}
-                    />
+                      onEdit={setEditingBook} />
+                  ))}
+                </div>
+          ) : activeTab === "audio" ? (
+            filteredAudio.length === 0
+              ? <EmptyState tab="audio" onUpload={() => setShowUpload(true)} isAdmin={isAdmin} />
+              : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                  {filteredAudio.map(audio => (
+                    <AudioCard key={audio.id} audio={audio} isAdmin={isAdmin}
+                      onPlay={setCurrentlyPlayingAudio}
+                      currentlyPlaying={currentlyPlayingAudio}
+                      onDelete={id => setAudioTracks(prev => prev.filter(a => a.id !== id))}
+                      onUpdate={updated => setAudioTracks(prev => prev.map(a => a.id === updated.id ? updated : a))} />
                   ))}
                 </div>
           ) : (
             filteredVideos.length === 0
-              ? <EmptyState tab="videos" onUpload={() => setShowUpload(true)} />
+              ? <EmptyState tab="videos" onUpload={() => setShowUpload(true)} isAdmin={isAdmin} />
               : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
                   {filteredVideos.map(video => (
-                    <VideoCard key={video.id} video={video}
+                    <VideoCard key={video.id} video={video} isAdmin={isAdmin}
                       onDelete={id => setVideos(prev => prev.filter(v => v.id !== id))}
                       onUpdate={updated => setVideos(prev => prev.map(v => v.id === updated.id ? updated : v))} />
                   ))}
@@ -508,15 +646,15 @@ const Library = () => {
         </div>
       </main>
 
-      {showUpload && (
+      {showUpload && isAdmin && (
         <UploadModal
           onClose={() => setShowUpload(false)}
-          onSuccess={() => { fetchBooks(); fetchVideos(); fetchTags(); }}
-          type={activeTab === "books" ? "book" : "video"}
+          onSuccess={() => { fetchBooks(); fetchVideos(); fetchAudio(); fetchTags(); }}
+          type={uploadType}
         />
       )}
 
-      {editingBook && (
+      {editingBook && isAdmin && (
         <BookEditModal
           book={editingBook}
           publishers={publishers}
@@ -540,5 +678,4 @@ const Library = () => {
   );
 };
 
-//comment
 export default Library;

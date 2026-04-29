@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
+import { AuthProvider } from './context/AuthContext'
 
 import '@fontsource/playfair-display/500.css'
 import '@fontsource/playfair-display/600.css'
@@ -21,7 +22,9 @@ import './styles/jirani_style.scss'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 )
