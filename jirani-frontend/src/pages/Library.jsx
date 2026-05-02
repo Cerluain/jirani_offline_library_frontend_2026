@@ -439,7 +439,7 @@ const VideoPlayerModal = ({ video, onClose }) => {
           </button>
         </div>
         <video autoPlay controls style={{ width: "100%", borderRadius: 12, background: "#000", maxHeight: "75vh" }}>
-          <source src={`${VIDEOS_API}/stream/${video.id}`} type="video/mp4" />
+          <source src={`${VIDEOS_API}/stream/${video.id}`}/>
         </video>
         {video.description && <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#A09890", margin: 0 }}>{video.description}</p>}
         {video.tags?.length > 0 && (
@@ -486,7 +486,7 @@ const VideoCard = ({ video, onDelete, onUpdate, isAdmin, onPlay }) => {
       <div onClick={() => !editing && onPlay(video)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
         style={{ position: "relative", aspectRatio: "16/9", background: "#111", cursor: "pointer", overflow: "hidden" }}>
         <video preload="metadata" muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: hovered ? "scale(1.03)" : "scale(1)", transition: "transform 0.3s ease" }}>
-          <source src={`${VIDEOS_API}/stream/${video.id}#t=1`} type="video/mp4" />
+          <source src={`${VIDEOS_API}/stream/${video.id}#t=1`}/>
         </video>
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: hovered ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.15)", transition: "background 0.2s ease" }}>
           <div style={{ width: 44, height: 44, borderRadius: "50%", background: hovered ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s ease", transform: hovered ? "scale(1.1)" : "scale(1)" }}>
